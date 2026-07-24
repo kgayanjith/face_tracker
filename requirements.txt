@@ -1,0 +1,6 @@
+# Pinned below 5.0: OpenCV 5.0 (released July 2026) moved CascadeClassifier
+# out of the base package into opencv_contrib's xobjdetect module, so
+# `cv2.CascadeClassifier` no longer exists on opencv-python>=5.0 unless you
+# separately install opencv-contrib-python.
+opencv-python>=4.10.0,<5.0.0
+numpy>=1.26.0
