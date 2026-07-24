@@ -89,6 +89,12 @@ class AnalyzerConfig:
     # ratios get noisy. Only used as a secondary OR condition, not required.
     eye_region_dark_threshold: float = 90.0
 
+    # -- Face count --
+    # Reject images containing more than this many detected faces (e.g. a
+    # group photo, or someone photobombing a profile picture). Set to a
+    # higher number if multi-person photos are acceptable for your use case.
+    max_faces_allowed: int = 1
+
     # -- Cascade files (bundled with opencv-python) --
     haar_face: str = "haarcascade_frontalface_default.xml"
     haar_eye: str = "haarcascade_eye.xml"
@@ -168,6 +174,13 @@ class FaceQualityAnalyzer:
             result.overall_pass = False
             return result
 
+        too_many_faces = len(faces) > self.cfg.max_faces_allowed
+        if too_many_faces:
+            result.errors.append(
+                f"{len(faces)} faces detected, but only {self.cfg.max_faces_allowed} "
+                "allowed (reject group photos / photobombs)."
+            )
+
         # Use the largest detected face as the primary subject.
         x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
         result.face_box = (int(x), int(y), int(w), int(h))
@@ -181,6 +194,7 @@ class FaceQualityAnalyzer:
 
         result.overall_pass = (
             result.faces_found >= 1
+            and not too_many_faces
             and not result.is_blurry_or_pixelated
             and not result.is_black_and_white
             and result.is_fully_visible
@@ -317,12 +331,14 @@ class FaceQualityAnalyzer:
 # --------------------------------------------------------------------------- #
 def _print_human_report(result: FaceCheckResult) -> None:
     print(f"\n{'='*60}\n{result.image_path}\n{'='*60}")
-    if result.errors:
+    if result.face_box is None:
         for e in result.errors:
             print(f"  [ERROR] {e}")
         print(f"  OVERALL: {'PASS' if result.overall_pass else 'FAIL'}")
         return
 
+    for e in result.errors:
+        print(f"  [ERROR] {e}")
     print(f"  Faces found:           {result.faces_found}")
     print(f"  Face box (x,y,w,h):    {result.face_box}")
     print(f"  Sharpness score:       {result.sharpness_score}"
